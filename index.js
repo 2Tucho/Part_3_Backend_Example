@@ -19,13 +19,19 @@ app.get("/api/notes", (request, response) => {
   })
 })
 
-app.get("/api/notes/:id", (request, response) => {
-  Note.findById(request.params.id).then((note) => { // Usando el método findById de Mongoose
-    response.json(note)
-  })
+app.get('/api/notes/:id', (request, response, next) => {
+  Note.findById(request.params.id)
+    .then(note => {
+      if (note) {
+        response.json(note)
+      } else {
+        response.status(404).end()
+      }
+    })
+    .catch(error => next(error))
 })
 
-//POST NEW PERSON http://localhost:3001/api/notes
+//POST NEW NOTE http://localhost:3001/api/notes
 app.post("/api/notes", (request, response) => {
   const body = request.body
 
@@ -43,11 +49,28 @@ app.post("/api/notes", (request, response) => {
   })
 })
 
-app.delete("/api/notes/:id", (request, response) => {
-  const id = request.params.id
-  notes = notes.filter((note) => note.id !== id)
+// Cambiar de importancia las notas
+app.put('/api/notes/:id', (request, response, next) => {
+  const body = request.body
 
-  response.status(204).end()
+  const note = {
+    content: body.content,
+    important: body.important,
+  }
+
+  Note.findByIdAndUpdate(request.params.id, note, { new: true }) // Agregamos el parámetro opcional { new: true }, que hará que nuestro controlador de eventos sea llamado con el nuevo documento modificado en lugar del original.
+    .then(updatedNote => {
+      response.json(updatedNote)
+    })
+    .catch(error => next(error))
+})
+
+app.delete('/api/notes/:id', (request, response, next) => {
+  Note.findByIdAndDelete(request.params.id)
+    .then(result => {
+      response.status(204).end()
+    })
+    .catch(error => next(error))
 })
 
 const unknownEndpoint = (request, response) => {
@@ -55,6 +78,19 @@ const unknownEndpoint = (request, response) => {
 }
 
 app.use(unknownEndpoint) //Agreguemos el siguiente middleware después de nuestras rutas, que se usa para capturar solicitudes realizadas a rutas inexistentes. Para estas solicitudes, el middleware devolverá un mensaje de error en formato JSON.
+
+const errorHandler = (error, request, response, next) => {
+  console.error(error.message)
+
+  if (error.name === 'CastError') {
+    return response.status(400).send({ error: 'malformatted id' })
+  } 
+
+  next(error)
+}
+
+// controlador de solicitudes que resulten en errores
+app.use(errorHandler)
 
 const PORT = process.env.PORT
 app.listen(PORT, () => {
