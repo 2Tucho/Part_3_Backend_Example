@@ -1,44 +1,36 @@
-require('dotenv').config()
-const express = require('express')
-const Note = require('./models/note')
-
+require("dotenv").config()
+const express = require("express")
 const app = express()
+const morgan = require("./morgan")
+const Note = require("./models/note")
+const cors = require("cors")
+
+app.use(cors())
+app.use(express.static("dist"))
+app.use(express.json())
+
+app.use(morgan(":method :url :status - :res[content-length] :response-time ms :body"));
 
 let notes = []
 
-const requestLogger = (request, response, next) => {
-  console.log('Method:', request.method)
-  console.log('Path:  ', request.path)
-  console.log('Body:  ', request.body)
-  console.log('---')
-  next()
-}
-
-app.use(requestLogger)
-app.use(express.static('dist'))
-app.use(express.json())
-
-app.get('/', (request, response) => {
-  response.send('<h1>Hello World!</h1>')
-})
-
-app.get('/api/notes', (request, response) => {
+app.get("/api/notes", (request, response) => {
   Note.find({}).then((notes) => {
     response.json(notes)
   })
 })
 
-app.get('/api/notes/:id', (request, response) => {
-  Note.findById(request.params.id).then((note) => {
+app.get("/api/notes/:id", (request, response) => {
+  Note.findById(request.params.id).then((note) => { // Usando el método findById de Mongoose
     response.json(note)
   })
 })
 
-app.post('/api/notes', (request, response) => {
+//POST NEW PERSON http://localhost:3001/api/notes
+app.post("/api/notes", (request, response) => {
   const body = request.body
 
   if (!body.content) {
-    return response.status(400).json({ error: 'content missing' })
+    return response.status(400).json({ error: "content missing" })
   }
 
   const note = new Note({
@@ -51,7 +43,7 @@ app.post('/api/notes', (request, response) => {
   })
 })
 
-app.delete('/api/notes/:id', (request, response) => {
+app.delete("/api/notes/:id", (request, response) => {
   const id = request.params.id
   notes = notes.filter((note) => note.id !== id)
 
@@ -59,7 +51,7 @@ app.delete('/api/notes/:id', (request, response) => {
 })
 
 const unknownEndpoint = (request, response) => {
-  response.status(404).send({ error: 'unknown endpoint' })
+  response.status(404).send({ error: "unknown endpoint" })
 }
 
 app.use(unknownEndpoint) //Agreguemos el siguiente middleware después de nuestras rutas, que se usa para capturar solicitudes realizadas a rutas inexistentes. Para estas solicitudes, el middleware devolverá un mensaje de error en formato JSON.
